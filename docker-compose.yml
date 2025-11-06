@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   product-service:
     build:
@@ -26,8 +28,9 @@ services:
     container_name: product-db
     restart: always
     environment:
-      - MYSQL_ROOT_PASSWORD=root1
-      - MYSQL_DATABASE=productdb
+      MYSQL_ROOT_PASSWORD: root1
+      MYSQL_DATABASE: productdb
+    command: --default-authentication-plugin=mysql_native_password
     volumes:
       - product-db-data:/var/lib/mysql
     healthcheck:
@@ -36,6 +39,36 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  review-services:
+    build:
+      context: ./review-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - MONGO_USER=root
+      - MONGO_PASSWORD=Dev@root23
+      - MONGO_HOST=review-db
+    depends_on:
+      - review-db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.stats()"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+  review-db:
+    image: mongo:6.0
+    container_name: review-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: Dev@root23
+    volumes:
+      - review-db-data:/data/db
 
   cart-service:
     build:
@@ -55,7 +88,7 @@ services:
     depends_on:
       cart-db:
         condition: service_healthy
-    #command: bash -c "./wait-for-it.sh cart-db:3306 -- php artisan migrate && php -S 0.0.0.0:3002 -t public"
+    # command: bash -c "./wait-for-it.sh cart-db:3306 -- php artisan migrate && php -S 0.0.0.0:3002 -t public"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "cart-db", "-u", "root", "-proot1"]
       interval: 10s
@@ -68,8 +101,8 @@ services:
     container_name: cart-db
     restart: always
     environment:
-      - MYSQL_ROOT_PASSWORD=root1
-      - MYSQL_DATABASE=cartdb
+      MYSQL_ROOT_PASSWORD: root1
+      MYSQL_DATABASE: cartdb
     volumes:
       - cart-db-data:/var/lib/mysql
     healthcheck:
@@ -79,6 +112,8 @@ services:
       retries: 5
       start_period: 30s
 
+
 volumes:
   product-db-data:
   cart-db-data:
+  review-db-data:
